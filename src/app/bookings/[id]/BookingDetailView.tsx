@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { fetchBooking } from "@/lib/api/client";
@@ -15,7 +16,6 @@ import type { Booking } from "@/types";
 
 interface BookingDetailViewProps {
   id: string;
-  confirmed?: boolean;
 }
 
 function storageKey(id: string) {
@@ -36,7 +36,9 @@ function PageWrap({
   );
 }
 
-export function BookingDetailView({ id, confirmed }: BookingDetailViewProps) {
+export function BookingDetailView({ id }: BookingDetailViewProps) {
+  const searchParams = useSearchParams();
+  const confirmed = searchParams.get("confirmed") === "1";
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);

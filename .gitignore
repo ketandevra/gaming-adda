@@ -12,6 +12,7 @@
 /.next/
 /out/
 /build
+.gh-pages-stash-api/
 
 # Production / cache
 /dist

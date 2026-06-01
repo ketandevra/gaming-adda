@@ -1,5 +1,5 @@
 import { normalizeMobile } from "@/lib/auth/mobile";
-import { getApiBaseUrl } from "./config";
+import { getSheetsPostUrl } from "./request-url";
 import type { SheetsErrorResponse } from "./sheets-types";
 import type { LoginPayload, User } from "@/types/auth";
 import { ApiError } from "./client";
@@ -43,8 +43,7 @@ export async function sheetsLogin(payload: LoginPayload): Promise<User> {
     mobile: payload.mobile.trim(),
   };
 
-  const url =
-    typeof window === "undefined" ? getApiBaseUrl() : "/api/sheets";
+  const url = getSheetsPostUrl();
 
   const response = await fetch(url, {
     method: "POST",

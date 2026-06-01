@@ -1,7 +1,8 @@
 import { normalizeMobile } from "@/lib/auth/mobile";
 import { combineDateAndTime } from "@/lib/utils";
 import { CACHE_TTL, cachedFetch, invalidateCache } from "./cache";
-import { getApiBaseUrl, sheetsActions } from "./config";
+import { sheetsActions } from "./config";
+import { getSheetsGetUrl, getSheetsPostUrl } from "./request-url";
 import {
   mapAvailableSlot,
   mapConsoleType,
@@ -31,30 +32,8 @@ const CACHE_KEYS = {
   bookings: (mobile: string) => `bookings:${mobile}`,
 };
 
-function getProxyUrl(params: SheetsParams): string {
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== "") {
-      search.set(key, String(value));
-    }
-  }
-  return `/api/sheets?${search.toString()}`;
-}
-
-function getDirectUrl(params: SheetsParams): string {
-  const base = getApiBaseUrl();
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== "") {
-      search.set(key, String(value));
-    }
-  }
-  return `${base}?${search.toString()}`;
-}
-
 async function sheetsFetch<T>(params: SheetsParams, init?: RequestInit): Promise<T> {
-  const url =
-    typeof window === "undefined" ? getDirectUrl(params) : getProxyUrl(params);
+  const url = getSheetsGetUrl(params);
 
   const response = await fetch(url, {
     ...init,
@@ -95,8 +74,7 @@ async function sheetsFetch<T>(params: SheetsParams, init?: RequestInit): Promise
 }
 
 async function sheetsPost<T = unknown>(body: Record<string, unknown>): Promise<T> {
-  const url =
-    typeof window === "undefined" ? getApiBaseUrl() : "/api/sheets";
+  const url = getSheetsPostUrl();
 
   const response = await fetch(url, {
     method: "POST",

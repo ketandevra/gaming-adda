@@ -1,9 +1,14 @@
 import { BookingDetailView } from "./BookingDetailView";
+import { getBookingStaticParams } from "@/lib/static-params";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ confirmed?: string }>;
+}
+
+export function generateStaticParams() {
+  return getBookingStaticParams();
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -11,14 +16,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return { title: `Booking ${id}` };
 }
 
-export default async function BookingDetailPage({
-  params,
-  searchParams,
-}: PageProps) {
+function BookingDetailFallback() {
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 py-8 pb-24 sm:px-6">
+      <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+    </div>
+  );
+}
+
+export default async function BookingDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const { confirmed } = await searchParams;
 
   return (
-    <BookingDetailView id={id} confirmed={confirmed === "1"} />
+    <Suspense fallback={<BookingDetailFallback />}>
+      <BookingDetailView id={id} />
+    </Suspense>
   );
 }
