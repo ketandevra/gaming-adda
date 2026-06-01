@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# The Gaming Adda
 
-## Getting Started
+Next.js frontend for booking game console slots, powered by a **Google Apps Script** API backed by Google Sheets.
 
-First, run the development server:
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Google Sheets API
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Set in `.env.local`:
 
-## Learn More
+```env
+NEXT_PUBLIC_API_URL=https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
+NEXT_PUBLIC_USE_MOCK_DATA=false
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Endpoints used
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Action | Method | Parameters | Description |
+|--------|--------|------------|-------------|
+| `consoleTypes` | GET | — | List all console types |
+| `availableSlots` | GET | `consoleTypeId`, `bookingDate` (YYYY-MM-DD) | Hourly slots for a console on a date |
+| `myBookings` | GET | `mobile` | List bookings for a user |
+| `createBooking` | POST | JSON body | Create booking (set action name via env if different) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Example console list:
 
-## Deploy on Vercel
+```
+GET .../exec?action=consoleTypes
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Returns:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```json
+[
+  { "id": 1, "name": "PlayStation 5 Pro Station", "pricePerHour": 300 }
+]
+```
+
+Example slots:
+
+```
+GET .../exec?action=availableSlots&consoleTypeId=1&bookingDate=2026-06-15
+```
+
+Browser requests go through `/api/sheets` to avoid CORS issues.
+
+### Create booking
+
+If your script uses a different POST action name, set:
+
+```env
+NEXT_PUBLIC_SHEETS_ACTION_CREATE_BOOKING=yourActionName
+```
+
+POST body sent to your script:
+
+```json
+{
+  "action": "createBooking",
+  "consoleTypeId": 1,
+  "consoleId": 1,
+  "date": "2026-06-15",
+  "startTime": "18:00",
+  "endTime": "19:00",
+  "customerName": "...",
+  "customerEmail": "...",
+  "customerPhone": "...",
+  "notes": "optional"
+}
+```
+
+Share your create-booking action name if it differs and we can wire it in.
+
+## Scripts
+
+- `npm run dev` — Development server
+- `npm run build` — Production build
+- `npm run start` — Start production server
