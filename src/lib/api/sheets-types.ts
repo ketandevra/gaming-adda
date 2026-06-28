@@ -41,9 +41,17 @@ export interface SheetsBooking {
   price?: number;
   status?: string;
   bookingStatus?: string;
+  booking_status?: string;
   paymentStatus?: string;
+  payment_status?: string;
+  payment?: string;
   expiresAt?: string;
   expiresAT?: string;
+  amount?: number;
+  total?: number;
   notes?: string;
   createdAt?: string;
+  utrNumber?: string;
+  utr?: string;
+  transactionReference?: string;
 }

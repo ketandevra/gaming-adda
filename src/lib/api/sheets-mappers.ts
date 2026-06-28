@@ -10,6 +10,12 @@ import type {
 
 export function inferPlatform(name: string): ConsolePlatform {
   const n = name.toLowerCase();
+  if (n.includes("ps5-premium") || n.includes("ps5 premium") || n.includes("premium ps5")) {
+    return "playstation";
+  }
+  if (n.includes("ps5-standard") || n.includes("ps5 standard") || n.includes("standard ps5")) {
+    return "playstation";
+  }
   if (n.includes("playstation") || n.includes("ps5") || n.includes("ps4")) {
     return "playstation";
   }
@@ -17,6 +23,16 @@ export function inferPlatform(name: string): ConsolePlatform {
   if (n.includes("nintendo") || n.includes("switch")) return "nintendo";
   if (n.includes("vr")) return "vr";
   if (n.includes("pc")) return "pc";
+  if (
+    n.includes("pool") ||
+    n.includes("billiards") ||
+    n.includes("air hockey") ||
+    n.includes("table tennis") ||
+    n.includes("ping pong") ||
+    n.includes("foosball")
+  ) {
+    return "other";
+  }
   return "other";
 }
 
@@ -115,8 +131,13 @@ export function mapSheetsBooking(row: SheetsBooking): Booking {
       ? buildSlotId(consoleId, bookingDate, startTime, endTime)
       : "";
 
-  const bookingStatusRaw = row.bookingStatus?.trim();
-  const paymentStatus = row.paymentStatus?.trim() || undefined;
+  const bookingStatusRaw =
+    row.bookingStatus?.trim() || row.booking_status?.trim() || undefined;
+  const paymentStatus =
+    row.paymentStatus?.trim() ||
+    row.payment_status?.trim() ||
+    row.payment?.trim() ||
+    undefined;
 
   const statusSource =
     bookingStatusRaw && !looksLikeIsoTimestamp(bookingStatusRaw)
@@ -125,7 +146,8 @@ export function mapSheetsBooking(row: SheetsBooking): Booking {
 
   const { status, bookedAt } = parseBookingStatus(statusSource);
 
-  const totalAmount = row.totalAmount ?? row.price;
+  const totalAmount =
+    row.totalAmount ?? row.price ?? row.amount ?? row.total;
 
   return {
     id,
@@ -148,6 +170,12 @@ export function mapSheetsBooking(row: SheetsBooking): Booking {
     bookedAt,
     createdAt: row.createdAt,
     notes: row.notes,
+    utrNumber:
+      row.utrNumber != null
+        ? String(row.utrNumber).trim()
+        : row.utr?.trim() ||
+          row.transactionReference?.trim() ||
+          undefined,
   };
 }
 

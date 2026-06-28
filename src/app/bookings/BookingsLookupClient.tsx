@@ -1,48 +1,50 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { BookingsTabs, type BookingsTab } from "@/components/booking/BookingsTabs";
+import {
+  BookingsEmpty,
+  BookingsTabs,
+  type BookingsTab,
+} from "@/components/booking/BookingsTabs";
 import { useAuthMobile } from "@/hooks/useAuthMobile";
 import { useHasMounted } from "@/hooks/useHasMounted";
+import { enrichBookingPaymentAmounts } from "@/lib/bookings/payment";
+import { groupBookingsForDisplay } from "@/lib/bookings/group";
 import { partitionBookings } from "@/lib/bookings/timing";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookingCard } from "@/components/booking/BookingCard";
+import { RefreshIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { getCached } from "@/lib/api/cache";
-import { fetchBookings } from "@/lib/api/client";
-import type { Booking } from "@/types";
+import { fetchBookings, fetchConsoles } from "@/lib/api/client";
+import type { Booking, GameConsole } from "@/types";
+
+function consolesById(consoles: GameConsole[]): Map<string, GameConsole> {
+  return new Map(consoles.map((consoleItem) => [consoleItem.id, consoleItem]));
+}
 
 function bookingsCacheKey(mobile: string) {
   return `bookings:${mobile}`;
-}
-
-function RefreshIcon({ spinning }: { spinning: boolean }) {
-  return (
-    <svg
-      className={cn("h-4 w-4", spinning && "animate-spin")}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      aria-hidden
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-      />
-    </svg>
-  );
 }
 
 function BookingListSkeleton() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-[5.5rem] animate-pulse rounded-xl border border-[var(--border)] bg-white/[0.03]"
-        />
+        <div key={i} className="user-booking-card booking-card overflow-hidden">
+          <div className="h-0.5 animate-pulse bg-[var(--accent-soft)]" />
+          <div className="space-y-2.5 p-3.5">
+            <div className="flex justify-between gap-2">
+              <div className="h-4 w-2/5 animate-pulse rounded bg-[var(--surface-elevated)]" />
+              <div className="h-6 w-14 animate-pulse rounded-md bg-[var(--surface-elevated)]" />
+            </div>
+            <div className="flex gap-1.5">
+              <div className="h-5 w-16 animate-pulse rounded-full bg-[var(--surface-elevated)]" />
+              <div className="h-5 w-20 animate-pulse rounded-full bg-[var(--surface-elevated)]" />
+            </div>
+            <div className="h-3 w-3/4 animate-pulse rounded bg-[var(--surface-elevated)]" />
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -54,6 +56,9 @@ export function BookingsLookupClient() {
   const mobile = useAuthMobile();
 
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [consolesByIdMap, setConsolesByIdMap] = useState<Map<string, GameConsole>>(
+    () => new Map(),
+  );
   const [refreshing, setRefreshing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
@@ -70,8 +75,14 @@ export function BookingsLookupClient() {
 
       const cached = getCached<Booking[]>(bookingsCacheKey(mobile));
       if (cached && !force) {
-        setBookings(cached);
+        setBookings(groupBookingsForDisplay(cached));
         setRefreshing(false);
+        void fetchConsoles()
+          .then((consoles) => {
+            setConsolesByIdMap(consolesById(consoles));
+            setBookings(groupBookingsForDisplay(enrichBookingPaymentAmounts(cached, consoles)));
+          })
+          .catch(() => undefined);
         return;
       }
 
@@ -79,8 +90,13 @@ export function BookingsLookupClient() {
       setError(null);
 
       try {
-        const data = await fetchBookings({ mobile }, { force });
-        setBookings(data);
+        const [data, consoles] = await Promise.all([
+          fetchBookings({ mobile }, { force }),
+          fetchConsoles(),
+        ]);
+        const enriched = enrichBookingPaymentAmounts(data, consoles);
+        setConsolesByIdMap(consolesById(consoles));
+        setBookings(groupBookingsForDisplay(enriched));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load bookings");
         if (!cached) setBookings([]);
@@ -112,10 +128,11 @@ export function BookingsLookupClient() {
         <BookingCard
           key={b.id}
           booking={b}
+          console={consolesByIdMap.get(b.consoleId)}
           onPaymentUpdated={handlePaymentUpdated}
         />
       )),
-    [visibleBookings, handlePaymentUpdated],
+    [visibleBookings, consolesByIdMap, handlePaymentUpdated],
   );
 
   useEffect(() => {
@@ -139,66 +156,58 @@ export function BookingsLookupClient() {
 
   const emptyMessage =
     activeTab === "upcoming"
-      ? "No upcoming bookings. Book a console to get started."
-      : "No past bookings yet.";
+      ? "No upcoming bookings yet"
+      : "No past bookings yet";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {bookingSuccess ? (
-        <p
-          className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200"
-          role="status"
-        >
-          Booking confirmed! Your session is listed below.
+        <p className="alert-success px-4 py-3" role="status">
+          Booking confirmed! Your sessions are listed below.
         </p>
       ) : null}
 
-      <div className="flex items-stretch gap-2">
-        <div className="min-w-0 flex-1">
-          <BookingsTabs
-            active={activeTab}
-            upcomingCount={upcoming.length}
-            pastCount={past.length}
-            onChange={setActiveTab}
-          />
-        </div>
+      <div className="bookings-toolbar">
+        <BookingsTabs
+          active={activeTab}
+          upcomingCount={upcoming.length}
+          pastCount={past.length}
+          onChange={setActiveTab}
+        />
         <button
           type="button"
           onClick={handleRefresh}
           disabled={refreshDisabled}
           aria-label={refreshing ? "Refreshing bookings" : "Refresh bookings"}
           title={refreshing ? "Refreshing…" : "Refresh"}
-          className={cn(
-            "flex shrink-0 touch-manipulation items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[var(--muted)] transition",
-            "hover:border-[var(--accent)] hover:text-[var(--foreground)]",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-          )}
+          className="bookings-refresh-btn"
         >
-          <RefreshIcon spinning={refreshing} />
+          <RefreshIcon spinning={refreshing} size={16} />
         </button>
       </div>
 
       {refreshing && bookings.length > 0 ? (
-        <p className="text-center text-[11px] text-[var(--muted)]" role="status">
+        <p className="text-center text-xs text-[var(--muted)]" role="status">
           Updating bookings…
         </p>
       ) : null}
 
-      {error ? (
-        <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>
-      ) : null}
+      {error ? <p className="alert-error px-4 py-3">{error}</p> : null}
 
       {showSkeleton ? (
         <BookingListSkeleton />
       ) : (
-        <div className="space-y-3" role="tabpanel">
+        <div className="space-y-3 min-w-0" role="tabpanel">
           {bookings.length === 0 ? (
-            <p className="py-8 text-center text-[var(--muted)]">
-              No bookings yet. Book a console to get started.
-            </p>
+            <BookingsEmpty
+              message="You haven't booked any sessions yet"
+              showBrowse
+            />
           ) : visibleBookings.length === 0 ? (
-            <p className="py-8 text-center text-[var(--muted)]">{emptyMessage}</p>
+            <BookingsEmpty
+              message={emptyMessage}
+              showBrowse={activeTab === "upcoming"}
+            />
           ) : (
             bookingCards
           )}

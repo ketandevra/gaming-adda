@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ConsoleCard } from "@/components/consoles/ConsoleCard";
 import { ConsolesListSkeleton } from "@/components/consoles/ConsolesListSkeleton";
+import { GamepadIcon } from "@/components/icons";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import { fetchConsoles } from "@/lib/api/client";
 import { getCached } from "@/lib/api/cache";
@@ -62,7 +63,7 @@ export function ConsolesListClient() {
   return (
     <>
       {error ? (
-        <p className="mb-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <p className="mb-4 alert-error rounded-xl px-4 py-3 text-sm">
           {error}
         </p>
       ) : null}
@@ -72,9 +73,17 @@ export function ConsolesListClient() {
       ) : null}
 
       {consoles.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[var(--border)] p-12 text-center text-[var(--muted)]">
-          No consoles available right now. Check back soon.
-        </p>
+        <div className="bookings-empty rounded-2xl border border-dashed border-[var(--border)]">
+          <div className="bookings-empty-icon" aria-hidden>
+            <GamepadIcon size={28} strokeWidth={1.5} />
+          </div>
+          <p className="mt-4 text-sm font-medium text-[var(--foreground)]">
+            No consoles available right now
+          </p>
+          <p className="mt-1 text-sm text-[var(--foreground-secondary)]">
+            Check back soon.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {consoleCards}

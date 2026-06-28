@@ -11,14 +11,14 @@ import type { CreateBookingPayload } from "@/types";
 interface BookingFormProps {
   onSubmit: (data: CreateBookingPayload) => Promise<void>;
   consoleId: string;
-  slotId: string;
+  slotIds: string[];
   disabled?: boolean;
 }
 
 function BookingFormComponent({
   onSubmit,
   consoleId,
-  slotId,
+  slotIds,
   disabled,
 }: BookingFormProps) {
   const { user, isReady } = useAuth();
@@ -39,12 +39,25 @@ function BookingFormComponent({
     return normalizeMobile(user?.mobile);
   }, [mounted, isReady, user?.mobile]);
 
+  const confirmLabel = useMemo(() => {
+    if (submitting) return "Confirming…";
+    if (slotIds.length > 1) {
+      return `Confirm ${slotIds.length} slots`;
+    }
+    return "Confirm Booking";
+  }, [submitting, slotIds.length]);
+
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
 
       if (!mobile) {
         setSubmitError("Mobile number missing. Please log in again.");
+        return;
+      }
+
+      if (slotIds.length === 0) {
+        setSubmitError("Select at least one time slot.");
         return;
       }
 
@@ -60,7 +73,7 @@ function BookingFormComponent({
       try {
         await onSubmit({
           consoleId,
-          slotId,
+          slotIds,
           customerName: customerName.trim(),
           mobile,
           customerPhone: mobile,
@@ -74,7 +87,7 @@ function BookingFormComponent({
         setSubmitting(false);
       }
     },
-    [mobile, customerName, onSubmit, consoleId, slotId],
+    [mobile, customerName, onSubmit, consoleId, slotIds],
   );
 
   const handleNameChange = useCallback(
@@ -104,7 +117,7 @@ function BookingFormComponent({
       />
 
       {submitError ? (
-        <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="alert-error rounded-lg px-3 py-2 text-sm">
           {submitError}
         </p>
       ) : null}
@@ -113,9 +126,9 @@ function BookingFormComponent({
         type="submit"
         size="md"
         fullWidth
-        disabled={disabled || submitting || !mobile}
+        disabled={disabled || submitting || !mobile || slotIds.length === 0}
       >
-        {submitting ? "Confirming..." : "Confirm Booking"}
+        {confirmLabel}
       </Button>
     </form>
   );
@@ -128,7 +141,7 @@ function bookingFormPropsAreEqual(
   return (
     prev.onSubmit === next.onSubmit &&
     prev.consoleId === next.consoleId &&
-    prev.slotId === next.slotId &&
+    prev.slotIds === next.slotIds &&
     prev.disabled === next.disabled
   );
 }

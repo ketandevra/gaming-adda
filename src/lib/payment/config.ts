@@ -1,31 +1,22 @@
-import { withBasePath } from "@/lib/base-path";
+/** UPI settings for pending payments (NEXT_PUBLIC_* are available in the browser). */
 
-/** UPI / QR settings for pending payments (NEXT_PUBLIC_* are available in the browser). */
-
-/** Bundled PhonePe / UPI QR in `public/payment-qr.png`. Override via env if needed. */
-export const DEFAULT_PAYMENT_QR_PATH = "/payment-qr.png";
+/** Default UPI payee when env is not set (override via NEXT_PUBLIC_PAYMENT_UPI_*). */
+export const DEFAULT_PAYMENT_UPI_VPA = "gplpali@ybl";
+export const DEFAULT_PAYMENT_UPI_PAYEE_NAME = "GPL Pali";
 
 export function getPaymentUpiVpa(): string {
-  return process.env.NEXT_PUBLIC_PAYMENT_UPI_VPA?.trim() ?? "";
+  return (
+    process.env.NEXT_PUBLIC_PAYMENT_UPI_VPA?.trim() || DEFAULT_PAYMENT_UPI_VPA
+  );
 }
 
 export function getPaymentUpiPayeeName(): string {
   return (
-    process.env.NEXT_PUBLIC_PAYMENT_UPI_PAYEE_NAME?.trim() || "The Gaming Adda"
+    process.env.NEXT_PUBLIC_PAYMENT_UPI_PAYEE_NAME?.trim() ||
+    DEFAULT_PAYMENT_UPI_PAYEE_NAME
   );
 }
 
-/** Static QR image (env override, else bundled `public/payment-qr.png`). */
-export function getPaymentQrImageUrl(): string {
-  const fromEnvUrl = process.env.NEXT_PUBLIC_PAYMENT_QR_URL?.trim();
-  if (fromEnvUrl) {
-    return fromEnvUrl.startsWith("http")
-      ? fromEnvUrl
-      : withBasePath(fromEnvUrl);
-  }
-  return withBasePath(DEFAULT_PAYMENT_QR_PATH);
-}
-
 export function isPaymentConfigured(): boolean {
-  return Boolean(getPaymentUpiVpa() || getPaymentQrImageUrl());
+  return Boolean(getPaymentUpiVpa());
 }

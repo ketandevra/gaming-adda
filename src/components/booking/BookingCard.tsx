@@ -1,94 +1,73 @@
 "use client";
 
 import { memo, useMemo } from "react";
+import { BookingCardSchedule } from "@/components/booking/BookingCardSchedule";
+import { BookingCardConsoleSummary } from "@/components/booking/BookingCardConsoleSummary";
+import { BookingCardNumber } from "@/components/booking/BookingCardNumber";
+import { BookingCardTimestamps } from "@/components/booking/BookingCardTimestamps";
 import { BookingPaymentPanel } from "@/components/booking/BookingPaymentPanel";
+import { BookingRefundBanner } from "@/components/booking/BookingRefundBanner";
+import { InfoIcon } from "@/components/icons";
+import { usePaymentExpiryCountdown } from "@/hooks/usePaymentExpiryCountdown";
+import { STATUS_BADGE_CLASS } from "@/lib/bookings/status-styles";
 import { isPastBooking } from "@/lib/bookings/timing";
+import {
+  getBookingSlotCount,
+  getBookingSlotLines,
+} from "@/lib/bookings/group";
+import {
+  getUserBookingStatusLabel,
+  resolveUserBookingStatus,
+  shouldWatchUserBookingExpiry,
+  userBookingStatusTone,
+} from "@/lib/bookings/user-booking-status";
 import {
   formatBookingCardDate,
   formatBookingTimeRange,
-  formatApiStatus,
   formatCurrency,
-  bookingDisplayStatus,
-  bookingStatusBadgeVariant,
-  isPaymentPending,
-  paymentStatusBadgeVariant,
   cn,
 } from "@/lib/utils";
 import { areBookingsEqual } from "@/lib/react/compare";
-import type { Booking } from "@/types";
+import type { Booking, GameConsole } from "@/types";
 
 interface BookingCardProps {
   booking: Booking;
+  console?: GameConsole | null;
   onPaymentUpdated?: () => void;
 }
 
-function CalendarIcon() {
-  return (
-    <svg className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg className="h-3.5 w-3.5 shrink-0 text-[var(--accent-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
-
-function accentBorderClass(
-  variant: ReturnType<typeof bookingStatusBadgeVariant>,
-  paymentPending: boolean,
-): string {
-  if (paymentPending) return "border-l-amber-400";
-  switch (variant) {
-    case "success":
-      return "border-l-[var(--accent)]";
-    case "warning":
-      return "border-l-amber-400";
-    case "default":
-      return "border-l-[var(--muted)]";
-    default:
-      return "border-l-[var(--accent-secondary)]";
-  }
-}
-
-function BookingCardComponent({ booking, onPaymentUpdated }: BookingCardProps) {
+function BookingCardComponent({ booking, console: gameConsole, onPaymentUpdated }: BookingCardProps) {
   const dateLabel = useMemo(
     () => formatBookingCardDate(booking),
     [booking.bookingDate, booking.startTime, booking.endTime, booking.slotId],
   );
+  const slotCount = useMemo(() => getBookingSlotCount(booking), [booking]);
+  const slotLines = useMemo(() => getBookingSlotLines(booking), [booking]);
   const timeLabel = useMemo(
     () => formatBookingTimeRange(booking.startTime, booking.endTime),
     [booking.startTime, booking.endTime],
   );
-  const showPayment = useMemo(
-    () => isPaymentPending(booking.paymentStatus),
-    [booking.paymentStatus],
+  const watchExpiry = useMemo(
+    () => shouldWatchUserBookingExpiry(booking),
+    [booking],
   );
-  const statusBadgeVariant = useMemo(
-    () => bookingStatusBadgeVariant(booking),
-    [booking.bookingStatus, booking.status],
+  const expiryState = usePaymentExpiryCountdown(booking.expiresAt, watchExpiry);
+  const userStatus = useMemo(() => {
+    if (watchExpiry && expiryState?.isExpired) {
+      const expiredAt = booking.expiresAt
+        ? new Date(booking.expiresAt).getTime() + 1
+        : Date.now();
+      return resolveUserBookingStatus(booking, expiredAt);
+    }
+    return resolveUserBookingStatus(booking);
+  }, [booking, watchExpiry, expiryState?.isExpired]);
+  const statusLabel = useMemo(
+    () => getUserBookingStatusLabel(userStatus),
+    [userStatus],
   );
-  const displayStatus = useMemo(
-    () => bookingDisplayStatus(booking),
-    [booking.bookingStatus, booking.status],
-  );
-  const paymentLabel = useMemo(
-    () =>
-      booking.paymentStatus
-        ? formatApiStatus(booking.paymentStatus)
-        : null,
-    [booking.paymentStatus],
-  );
-  const paymentVariant = useMemo(
-    () =>
-      booking.paymentStatus
-        ? paymentStatusBadgeVariant(booking.paymentStatus)
-        : null,
-    [booking.paymentStatus],
+  const statusTone = useMemo(
+    () => userBookingStatusTone(userStatus),
+    [userStatus],
   );
   const isPast = useMemo(() => isPastBooking(booking), [booking]);
   const consoleTitle =
@@ -99,96 +78,68 @@ function BookingCardComponent({ booking, onPaymentUpdated }: BookingCardProps) {
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-xl border border-[var(--border)] border-l-[3px] bg-[var(--surface)] shadow-[0_4px_24px_rgba(0,0,0,0.25)] transition hover:border-[var(--accent)]/30",
-        accentBorderClass(statusBadgeVariant, showPayment),
-        isPast && "opacity-90",
+        "user-booking-card booking-card w-full min-w-0 overflow-hidden",
+        isPast && "booking-card-past",
+        userStatus === "payment-pending" && "user-booking-card--payment",
+        userStatus === "refund" && "user-booking-card--refund",
       )}
     >
-      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[var(--accent)]/5 blur-2xl transition group-hover:bg-[var(--accent)]/10" />
+      <div className="booking-card-accent" aria-hidden />
 
-      <div className="relative p-3.5">
-        <div className="flex items-start gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent-secondary)]/20 text-xs font-bold text-[var(--accent)]">
-            {consoleTitle.slice(0, 2).toUpperCase()}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-semibold leading-tight text-[var(--foreground)]">
-                  {consoleTitle}
-                </h3>
-                <p className="mt-0.5 truncate font-mono text-[10px] tracking-wide text-[var(--muted)]">
-                  {booking.id}
-                </p>
-              </div>
-              {hasAmount ? (
-                <p className="shrink-0 text-right text-sm font-bold leading-none text-[var(--accent)]">
-                  {formatCurrency(booking.totalAmount!)}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                  statusBadgeVariant === "success" &&
-                    "bg-emerald-500/15 text-emerald-300",
-                  statusBadgeVariant === "warning" &&
-                    "bg-amber-500/15 text-amber-300",
-                  statusBadgeVariant === "default" &&
-                    "bg-white/10 text-[var(--muted)]",
-                  statusBadgeVariant === "accent" &&
-                    "bg-[var(--accent-secondary)]/15 text-[var(--accent-secondary)]",
-                )}
-              >
-                {displayStatus}
+      <div className="user-booking-card-body min-w-0">
+        <BookingCardNumber bookingId={booking.id} />
+        <BookingCardConsoleSummary
+          booking={booking}
+          console={gameConsole}
+          title={consoleTitle}
+          badges={
+            <>
+              <span className={STATUS_BADGE_CLASS[statusTone]}>
+                {statusLabel}
               </span>
-              {paymentLabel && paymentVariant ? (
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                    paymentVariant === "warning" &&
-                      "bg-amber-500/20 text-amber-200",
-                    paymentVariant === "success" &&
-                      "bg-emerald-500/15 text-emerald-300",
-                    paymentVariant === "accent" &&
-                      "bg-[var(--accent)]/15 text-[var(--accent)]",
-                    paymentVariant === "default" &&
-                      "bg-white/10 text-[var(--muted)]",
-                  )}
-                >
-                  {paymentLabel}
+              {slotCount > 1 ? (
+                <span className="user-booking-slot-badge">
+                  {slotCount} slots
                 </span>
               ) : null}
-            </div>
-          </div>
-        </div>
+            </>
+          }
+          trailing={
+            hasAmount ? (
+              <span className="user-booking-amount">
+                {formatCurrency(booking.totalAmount!)}
+              </span>
+            ) : null
+          }
+        />
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg bg-black/25 px-3 py-2 text-[11px]">
-          <span className="inline-flex items-center gap-1.5 text-[var(--foreground)]">
-            <CalendarIcon />
-            <span className="font-medium">{dateLabel}</span>
-          </span>
-          <span className="hidden h-3 w-px bg-[var(--border)] sm:block" aria-hidden />
-          <span className="inline-flex items-center gap-1.5 text-[var(--muted)]">
-            <ClockIcon />
-            <span>{timeLabel}</span>
-          </span>
-        </div>
+        <BookingCardSchedule
+          dateLabel={dateLabel}
+          timeLabel={slotLines.length <= 1 ? timeLabel : undefined}
+          slotLines={slotLines.length > 1 ? slotLines : undefined}
+        />
+
+        <BookingCardTimestamps booking={booking} />
 
         {booking.notes ? (
-          <p className="mt-2 line-clamp-1 text-xs text-[var(--muted)]">
-            {booking.notes}
-          </p>
+          <p className="user-booking-notes">{booking.notes}</p>
         ) : null}
       </div>
 
-      {showPayment ? (
+      {userStatus === "refund" ? (
+        <BookingRefundBanner variant="user" />
+      ) : userStatus === "verifying-payment" ? (
+        <div className="user-booking-verify-banner" role="status">
+          <InfoIcon size={15} className="shrink-0" />
+          <span>
+            Verifying payment — we received your UTR and are confirming it.
+          </span>
+        </div>
+      ) : userStatus === "payment-pending" ? (
         <BookingPaymentPanel
           booking={booking}
           onSubmitted={onPaymentUpdated}
+          compact
         />
       ) : null}
     </article>
@@ -204,6 +155,7 @@ function bookingCardPropsAreEqual(
 
   return (
     prev.onPaymentUpdated === next.onPaymentUpdated &&
+    prev.console?.id === next.console?.id &&
     areBookingsEqual(prev.booking, next.booking)
   );
 }

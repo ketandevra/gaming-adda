@@ -4,16 +4,30 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookingForm } from "@/components/booking/BookingForm";
+import { BookingUpiPrompt } from "@/components/booking/BookingUpiPrompt";
 import { SlotPicker } from "@/components/booking/SlotPicker";
 import { ConsoleBookingSkeleton } from "@/components/consoles/ConsoleBookingSkeleton";
+import { ConsoleImage } from "@/components/consoles/ConsoleImage";
+import {
+  CalendarIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  UsersIcon,
+} from "@/components/icons";
 import { Badge } from "@/components/ui/Badge";
-import { createBooking, fetchConsole, fetchSlots } from "@/lib/api/client";
+import { createBookings, fetchConsole, fetchSlots } from "@/lib/api/client";
 import { getCached } from "@/lib/api/cache";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import {
   filterFutureSlots,
   isDateBeforeToday,
 } from "@/lib/slots/filter";
+import {
+  formatSlotTimeRange,
+  selectedSlotsFromIds,
+  sumSlotPrices,
+  toggleSlotSelection,
+} from "@/lib/slots/selection";
 import {
   formatCurrency,
   platformLabel,
@@ -37,9 +51,13 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
   const [consoleError, setConsoleError] = useState<string | null>(null);
   const [date, setDate] = useState(() => toDateInputValue(new Date()));
   const [slots, setSlots] = useState<TimeSlot[]>([]);
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
   const [slotsRefreshing, setSlotsRefreshing] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [pendingPayment, setPendingPayment] = useState<{
+    bookingId: string;
+    amount: number;
+  } | null>(null);
   const loadedDates = useRef(new Set<string>());
 
   useEffect(() => {
@@ -81,7 +99,7 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
 
     if (isDateBeforeToday(date)) {
       setSlots([]);
-      setSelectedSlotId(null);
+      setSelectedSlotIds([]);
       setSlotsRefreshing(false);
       setSlotsError(null);
       return;
@@ -91,7 +109,7 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
     const cached = getCached<TimeSlot[]>(key);
     if (cached) {
       setSlots(filterFutureSlots(cached));
-      setSelectedSlotId(null);
+      setSelectedSlotIds([]);
       setSlotsRefreshing(false);
     }
 
@@ -105,7 +123,7 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
       .then((data) => {
         if (cancelled) return;
         setSlots(filterFutureSlots(data));
-        setSelectedSlotId(null);
+        setSelectedSlotIds([]);
         loadedDates.current.add(date);
       })
       .catch((err) => {
@@ -127,17 +145,14 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
   const futureSlots = useMemo(() => filterFutureSlots(slots), [slots]);
 
   useEffect(() => {
-    if (
-      selectedSlotId &&
-      !futureSlots.some((s) => s.id === selectedSlotId)
-    ) {
-      setSelectedSlotId(null);
-    }
-  }, [futureSlots, selectedSlotId]);
+    setSelectedSlotIds((prev) =>
+      prev.filter((id) => futureSlots.some((s) => s.id === id && s.isAvailable)),
+    );
+  }, [futureSlots]);
 
-  const selectedSlot = useMemo(
-    () => futureSlots.find((s) => s.id === selectedSlotId),
-    [futureSlots, selectedSlotId],
+  const selectedSlots = useMemo(
+    () => selectedSlotsFromIds(futureSlots, selectedSlotIds),
+    [futureSlots, selectedSlotIds],
   );
 
   const showSlotSkeleton = useMemo(
@@ -147,8 +162,12 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
 
   const minDate = useMemo(() => toDateInputValue(new Date()), []);
 
-  const handleSelectSlot = useCallback((slotId: string) => {
-    setSelectedSlotId(slotId);
+  const handleToggleSlot = useCallback((slotId: string) => {
+    setSelectedSlotIds((prev) => toggleSlotSelection(prev, slotId));
+  }, []);
+
+  const handleClearSlots = useCallback(() => {
+    setSelectedSlotIds([]);
   }, []);
 
   const handleDateChange = useCallback(
@@ -159,33 +178,47 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
   );
 
   const handleBooking = useCallback(
-    async (payload: Parameters<typeof createBooking>[0]) => {
-      await createBooking(payload);
+    async (payload: Parameters<typeof createBookings>[0]) => {
+      const booking = await createBookings(payload);
+
+      const amount =
+        booking.totalAmount ??
+        (gameConsole
+          ? sumSlotPrices(selectedSlots, gameConsole.hourlyRate)
+          : 0);
+
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem("gaming-adda:booking-success", "1");
       }
-      router.push("/bookings");
+
+      setPendingPayment({
+        bookingId: booking.id,
+        amount,
+      });
     },
-    [router],
+    [gameConsole, selectedSlots],
   );
 
-  const slotTimeLabel = useMemo(() => {
-    if (!selectedSlot) return null;
-    const start = new Date(selectedSlot.startTime).toLocaleTimeString("en-IN", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-    const end = new Date(selectedSlot.endTime).toLocaleTimeString("en-IN", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-    return `${start} – ${end}`;
-  }, [selectedSlot]);
+  const handleViewBookings = useCallback(() => {
+    router.push("/bookings");
+  }, [router]);
 
   const totalLabel = useMemo(() => {
-    if (!selectedSlot || !gameConsole) return null;
-    return formatCurrency(selectedSlot.price ?? gameConsole.hourlyRate);
-  }, [selectedSlot, gameConsole]);
+    if (selectedSlots.length === 0 || !gameConsole) return null;
+    return formatCurrency(
+      sumSlotPrices(selectedSlots, gameConsole.hourlyRate),
+    );
+  }, [selectedSlots, gameConsole]);
+
+  if (pendingPayment) {
+    return (
+      <BookingUpiPrompt
+        bookingId={pendingPayment.bookingId}
+        amount={pendingPayment.amount}
+        onViewBookings={handleViewBookings}
+      />
+    );
+  }
 
   if (!mounted || (consoleLoading && !gameConsole)) {
     return <ConsoleBookingSkeleton />;
@@ -200,8 +233,9 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
         <Link
           href="/consoles"
           prefetch={false}
-          className="mt-4 inline-flex min-h-9 items-center rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium hover:border-[var(--accent)]"
+          className="mt-4 inline-flex min-h-9 items-center gap-1 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium hover:border-[var(--accent)]"
         >
+          <ChevronRightIcon size={16} className="rotate-180" />
           Back to consoles
         </Link>
       </div>
@@ -210,51 +244,78 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
 
   return (
     <div className="page-shell">
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px] lg:gap-5">
+      <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:gap-6">
         <div>
-          <Badge variant="accent">{platformLabel(gameConsole.platform)}</Badge>
-          <h1 className="page-title mt-2">{gameConsole.name}</h1>
-
-          <div className="mt-3 flex flex-wrap gap-4 text-xs">
-            <div>
-              <span className="text-[var(--muted)]">Rate </span>
-              <span className="font-semibold text-[var(--accent)]">
-                {formatCurrency(gameConsole.hourlyRate)}/hr
-              </span>
-            </div>
-            <div>
-              <span className="text-[var(--muted)]">Players </span>
-              <span className="font-semibold">Up to {gameConsole.maxPlayers}</span>
+          <div className="card mb-5 overflow-hidden">
+            <ConsoleImage
+              console={gameConsole}
+              className="aspect-[21/9] w-full sm:aspect-[2.5/1]"
+              priority
+              sizes="(max-width: 1024px) 100vw, 720px"
+            />
+            <div className="p-5">
+              <Badge variant="accent">{platformLabel(gameConsole.platform)}</Badge>
+              <h1 className="page-title mt-2">{gameConsole.name}</h1>
+              {gameConsole.description ? (
+                <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+                  {gameConsole.description}
+                </p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                <div className="inline-flex items-center gap-1.5">
+                  <ClockIcon size={14} className="text-[var(--muted)]" />
+                  <span className="text-[var(--muted)]">Rate </span>
+                  <span className="font-bold text-[var(--foreground)]">
+                    {formatCurrency(gameConsole.hourlyRate)}/hr
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-1.5">
+                  <UsersIcon size={14} className="text-[var(--muted)]" />
+                  <span className="text-[var(--muted)]">Players </span>
+                  <span className="font-semibold text-[var(--foreground)]">
+                    Up to {gameConsole.maxPlayers}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <section className="mt-6">
-            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-              <h2 className="text-sm font-semibold">Select date & time</h2>
-              <label className="flex flex-col gap-0.5 text-xs">
-                <span className="text-[var(--muted)]">Date</span>
+          <section className="card p-4 sm:p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-label inline-flex items-center gap-1">
+                  <CalendarIcon size={12} />
+                  Step 1
+                </p>
+                <h2 className="mt-1 text-base font-bold">Select date & time</h2>
+              </div>
+              <label className="flex w-full flex-col gap-1.5 sm:w-auto">
+                <span className="inline-flex items-center gap-1 text-sm font-medium text-[var(--foreground-secondary)]">
+                  <CalendarIcon size={14} />
+                  Date
+                </span>
                 <input
                   type="date"
                   value={date}
                   min={minDate}
                   onChange={handleDateChange}
-                  className="min-h-9 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm focus:border-[var(--accent)] focus:outline-none"
+                  className="date-input w-full min-h-11 sm:min-h-10"
                 />
               </label>
             </div>
 
             {slotsRefreshing && futureSlots.length > 0 ? (
-              <p className="mb-2 text-xs text-[var(--muted)]">Updating slots…</p>
+              <p className="mb-3 text-xs text-[var(--foreground-secondary)]">Updating slots…</p>
             ) : null}
 
             {isDateBeforeToday(date) ? (
-              <p className="rounded-lg border border-dashed border-[var(--border)] px-3 py-4 text-center text-xs text-[var(--muted)]">
+              <p className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] px-4 py-5 text-center text-sm text-[var(--foreground-secondary)]">
                 Past dates cannot be booked. Choose today or a future date.
               </p>
             ) : null}
 
             {slotsError ? (
-              <p className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              <p className="mb-4 alert-error rounded-[var(--radius-md)] px-3 py-2 text-sm">
                 {slotsError}
               </p>
             ) : null}
@@ -262,8 +323,8 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
             {!isDateBeforeToday(date) ? (
               <SlotPicker
                 slots={futureSlots}
-                selectedSlotId={selectedSlotId}
-                onSelect={handleSelectSlot}
+                selectedSlotIds={selectedSlotIds}
+                onToggle={handleToggleSlot}
                 loading={showSlotSkeleton}
                 emptyMessage={
                   slots.length > 0 && futureSlots.length === 0
@@ -275,35 +336,62 @@ export function ConsoleBookingClient({ consoleId }: ConsoleBookingClientProps) {
           </section>
         </div>
 
-        <aside className="section-card h-fit p-3.5 lg:sticky lg:top-20">
-          <h2 className="text-sm font-semibold">Booking summary</h2>
+        <aside className="card h-fit p-4 sm:p-5 lg:sticky lg:top-20">
+          <p className="text-label inline-flex items-center gap-1">
+            <ClockIcon size={12} />
+            Step 2
+          </p>
+          <h2 className="mt-1 text-base font-bold">Booking summary</h2>
 
-          {selectedSlot && slotTimeLabel && totalLabel ? (
-            <dl className="mt-3 space-y-1.5 text-xs">
-              <div className="flex justify-between">
-                <dt className="text-[var(--muted)]">Slot</dt>
-                <dd>{slotTimeLabel}</dd>
+          {selectedSlots.length > 0 && totalLabel ? (
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-[var(--foreground-secondary)]">
+                  {selectedSlots.length} slot{selectedSlots.length > 1 ? "s" : ""} selected
+                </p>
+                <button
+                  type="button"
+                  onClick={handleClearSlots}
+                  className="text-xs font-medium text-[var(--accent-muted)] hover:underline"
+                >
+                  Clear
+                </button>
               </div>
-              <div className="flex justify-between border-t border-[var(--border)] pt-2">
-                <dt className="font-medium">Total</dt>
-                <dd className="text-base font-bold text-[var(--accent)]">
+              <ul className="max-h-40 space-y-1.5 overflow-y-auto rounded-[var(--radius-sm)] bg-[var(--surface-elevated)] px-3 py-2">
+                {selectedSlots.map((slot) => (
+                  <li
+                    key={slot.id}
+                    className="flex justify-between gap-2 text-[var(--foreground)]"
+                  >
+                    <span>{formatSlotTimeRange(slot)}</span>
+                    <span className="shrink-0 font-medium text-[var(--foreground-secondary)]">
+                      {formatCurrency(slot.price ?? gameConsole.hourlyRate)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex justify-between rounded-[var(--radius-sm)] border border-[var(--cyan)]/25 bg-[var(--accent-soft)] px-3 py-2.5">
+                <span className="font-semibold text-[var(--foreground)]">Total</span>
+                <span className="text-lg font-bold brand-gradient-text">
                   {totalLabel}
-                </dd>
+                </span>
               </div>
-            </dl>
+            </div>
           ) : (
-            <p className="mt-3 text-xs text-[var(--muted)]">
-              Select an available time slot to continue.
+            <p className="mt-4 rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-3 py-4 text-center text-sm text-[var(--foreground-secondary)]">
+              Select one or more available time slots to continue.
             </p>
           )}
 
-          <div className="mt-4 border-t border-[var(--border)] pt-4">
-            <h3 className="mb-3 text-xs font-medium text-[var(--muted)]">Your details</h3>
+          <div className="mt-5 border-t border-[var(--border)] pt-5">
+            <h3 className="mb-3 text-sm font-semibold text-[var(--foreground-secondary)]">
+              Your details
+            </h3>
             <BookingForm
               consoleId={gameConsole.id}
-              slotId={selectedSlotId ?? ""}
+              slotIds={selectedSlotIds}
               onSubmit={handleBooking}
-              disabled={!selectedSlotId}
+              disabled={selectedSlotIds.length === 0}
             />
           </div>
         </aside>

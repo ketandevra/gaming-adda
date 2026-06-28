@@ -8,8 +8,9 @@ export const metadata: Metadata = {
 export default function ConsolesPage() {
   return (
     <div className="page-shell">
-      <div className="mb-5">
-        <h1 className="page-title">Gaming Consoles</h1>
+      <div className="page-header">
+        <p className="text-label">Stations</p>
+        <h1 className="page-title mt-1">Gaming Consoles</h1>
         <p className="page-subtitle">
           Select a station and book your preferred time slot.
         </p>

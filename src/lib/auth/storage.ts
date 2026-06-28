@@ -1,27 +1,57 @@
 import { normalizeMobile } from "@/lib/auth/mobile";
-import { asyncStorage } from "@/lib/storage/async-storage";
 import type { User } from "@/types/auth";
 
 export const AUTH_STORAGE_KEY = "gaming-adda:user";
+export const AUTH_COOKIE_KEY = "gaming-adda-user";
+
+let memoryUser: User | null = null;
 
 function parseUser(raw: string): User | null {
   try {
     const user = JSON.parse(raw) as User;
-    return {
-      ...user,
-      mobile: normalizeMobile(user.mobile),
-      name: String(user.name ?? "").trim(),
-    };
+    const mobile = normalizeMobile(user.mobile);
+    const name = String(user.name ?? "").trim();
+    if (!name || mobile.length !== 10) return null;
+    return { ...user, mobile, name };
   } catch {
     return null;
   }
 }
 
-/** Synchronous read for instant client hydration (no auth loading flash). */
-export function getStoredUserSync(): User | null {
-  if (typeof window === "undefined") return null;
+function setAuthCookie(user: User): void {
+  const payload = encodeURIComponent(
+    JSON.stringify({
+      name: user.name,
+      mobile: user.mobile,
+      id: user.id,
+      isAdmin: user.isAdmin,
+    }),
+  );
+  document.cookie = `${AUTH_COOKIE_KEY}=${payload}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+}
+
+function getAuthCookie(): User | null {
+  const prefix = `${AUTH_COOKIE_KEY}=`;
+  const match = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(prefix));
+  if (!match) return null;
   try {
-    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    return parseUser(decodeURIComponent(match.slice(prefix.length)));
+  } catch {
+    return null;
+  }
+}
+
+function clearAuthCookie(): void {
+  document.cookie = `${AUTH_COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
+}
+
+function readFromWebStorage(
+  get: (key: string) => string | null,
+): User | null {
+  try {
+    const raw = get(AUTH_STORAGE_KEY);
     if (!raw) return null;
     return parseUser(raw);
   } catch {
@@ -29,27 +59,93 @@ export function getStoredUserSync(): User | null {
   }
 }
 
-export async function getStoredUser(): Promise<User | null> {
-  const raw = await asyncStorage.getItem(AUTH_STORAGE_KEY);
-  if (!raw) return null;
+/** Read session from memory, localStorage, sessionStorage, or cookie. */
+export function readStoredUser(): User | null {
+  if (memoryUser) return memoryUser;
+  if (typeof window === "undefined") return null;
 
-  const user = parseUser(raw);
-  if (!user) {
-    await asyncStorage.removeItem(AUTH_STORAGE_KEY);
-    return null;
-  }
-  return user;
+  return (
+    readFromWebStorage((key) => window.localStorage.getItem(key)) ??
+    readFromWebStorage((key) => window.sessionStorage.getItem(key)) ??
+    getAuthCookie()
+  );
 }
 
-export async function setStoredUser(user: User): Promise<void> {
+/** @deprecated Use readStoredUser */
+export function getStoredUserSync(): User | null {
+  return readStoredUser();
+}
+
+/** Persist session across localStorage, sessionStorage, cookie, and memory. */
+export function persistUser(user: User): void {
   const normalized: User = {
     ...user,
     mobile: normalizeMobile(user.mobile),
     name: String(user.name ?? "").trim(),
   };
-  await asyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalized));
+
+  if (!normalized.name || normalized.mobile.length !== 10) {
+    throw new Error("Enter a valid name and 10-digit mobile number.");
+  }
+
+  const json = JSON.stringify(normalized);
+  memoryUser = normalized;
+
+  let saved = false;
+
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, json);
+      saved = true;
+    } catch {
+      // Private browsing or storage blocked
+    }
+
+    try {
+      window.sessionStorage.setItem(AUTH_STORAGE_KEY, json);
+      saved = true;
+    } catch {
+      // sessionStorage blocked
+    }
+
+    try {
+      setAuthCookie(normalized);
+      saved = true;
+    } catch {
+      // cookie blocked
+    }
+  }
+
+  if (!saved && typeof window !== "undefined") {
+    throw new Error(
+      "Could not save your session. Turn off private browsing or allow site storage, then try again.",
+    );
+  }
+}
+
+export async function getStoredUser(): Promise<User | null> {
+  return readStoredUser();
+}
+
+export async function setStoredUser(user: User): Promise<void> {
+  persistUser(user);
 }
 
 export async function clearStoredUser(): Promise<void> {
-  await asyncStorage.removeItem(AUTH_STORAGE_KEY);
+  memoryUser = null;
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+
+  try {
+    window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+
+  clearAuthCookie();
 }

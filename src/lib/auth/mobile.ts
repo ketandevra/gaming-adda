@@ -1,5 +1,11 @@
 /** API may return mobile as number or string — always normalize for display and requests. */
 export function normalizeMobile(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  return String(value).trim();
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) {
+    return digits.slice(2);
+  }
+  if (digits.length === 11 && digits.startsWith("0")) {
+    return digits.slice(1);
+  }
+  return digits;
 }

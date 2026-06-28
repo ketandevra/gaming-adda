@@ -170,7 +170,19 @@ export function formatApiStatus(value?: string): string {
 }
 
 export function isPaymentPending(paymentStatus?: string): boolean {
-  return paymentStatus?.trim().toLowerCase() === "pending";
+  const raw = paymentStatus?.trim().toLowerCase().replace(/_/g, " ") ?? "";
+  if (!raw) return false;
+  if (raw.includes("paid") || raw.includes("verified") || raw.includes("success")) {
+    return false;
+  }
+  if (raw.includes("submit")) return false;
+  return (
+    raw.includes("pending") ||
+    raw.includes("not paid") ||
+    raw.includes("unpaid") ||
+    raw.includes("await") ||
+    raw.includes("reserved")
+  );
 }
 
 export function bookingDisplayStatus(booking: {
@@ -183,31 +195,113 @@ export function bookingDisplayStatus(booking: {
   return statusLabel(booking.status);
 }
 
+/** @deprecated Use bookingStatusTone from @/lib/bookings/status-styles */
 export function bookingStatusBadgeVariant(
   booking: { bookingStatus?: string; status: BookingStatus },
 ): "default" | "accent" | "success" | "warning" {
-  const raw = (booking.bookingStatus ?? booking.status).toLowerCase();
-  if (raw.includes("cancel")) return "default";
-  if (raw.includes("pending") || raw.includes("await")) return "warning";
-  if (raw.includes("confirm") || raw.includes("complete") || raw.includes("paid")) {
-    return "success";
-  }
-  return "accent";
+  const tone = (() => {
+    const raw = (booking.bookingStatus ?? booking.status).toLowerCase();
+    if (raw.includes("cancel") || raw.includes("not paid")) return "default";
+    if (raw.includes("pending") || raw.includes("reserved")) return "warning";
+    if (raw.includes("confirm") || raw.includes("complete") || raw.includes("paid")) {
+      return "success";
+    }
+    return "accent";
+  })();
+  return tone;
 }
 
+/** @deprecated Use paymentStatusTone from @/lib/bookings/status-styles */
 export function paymentStatusBadgeVariant(
   paymentStatus?: string,
 ): "default" | "accent" | "success" | "warning" {
   const raw = paymentStatus?.trim().toLowerCase() ?? "";
   if (!raw) return "default";
-  if (raw === "pending") return "warning";
+  if (raw === "pending" || raw.includes("reserved")) return "warning";
   if (raw.includes("paid") || raw.includes("success") || raw.includes("verified")) {
     return "success";
   }
-  if (raw.includes("fail") || raw.includes("reject")) return "default";
+  if (raw.includes("fail") || raw.includes("reject") || raw.includes("not paid")) {
+    return "default";
+  }
   return "accent";
 }
 
 export function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
+}
+
+function copyWithExecCommand(text: string): boolean {
+  if (typeof document === "undefined") return false;
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.setAttribute("aria-hidden", "true");
+  textarea.style.position = "fixed";
+  textarea.style.top = "0";
+  textarea.style.left = "0";
+  textarea.style.width = "2em";
+  textarea.style.height = "2em";
+  textarea.style.padding = "0";
+  textarea.style.border = "none";
+  textarea.style.outline = "none";
+  textarea.style.boxShadow = "none";
+  textarea.style.background = "transparent";
+  textarea.style.opacity = "0";
+  textarea.style.fontSize = "16px";
+
+  document.body.appendChild(textarea);
+  textarea.focus();
+
+  const isIos = /ipad|iphone|ipod/i.test(navigator.userAgent);
+  if (isIos) {
+    textarea.contentEditable = "true";
+    textarea.readOnly = false;
+    const range = document.createRange();
+    range.selectNodeContents(textarea);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    textarea.setSelectionRange(0, text.length);
+  } else {
+    textarea.select();
+  }
+
+  let success = false;
+  try {
+    success = document.execCommand("copy");
+  } catch {
+    success = false;
+  }
+
+  document.body.removeChild(textarea);
+  return success;
+}
+
+/** Copy text during a user gesture. Prefer this over async clipboard APIs on mobile. */
+export function copyTextToClipboard(text: string): boolean {
+  const value = text.trim();
+  if (!value) return false;
+  return copyWithExecCommand(value);
+}
+
+export async function copyTextToClipboardAsync(text: string): Promise<boolean> {
+  const value = text.trim();
+  if (!value) return false;
+
+  if (copyTextToClipboard(value)) {
+    return true;
+  }
+
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
 }

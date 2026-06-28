@@ -28,6 +28,8 @@ NEXT_PUBLIC_USE_MOCK_DATA=false
 | `consoleTypes` | GET | — | List all console types |
 | `availableSlots` | GET | `consoleTypeId`, `bookingDate` (YYYY-MM-DD) | Hourly slots for a console on a date |
 | `myBookings` | GET | `mobile` | List bookings for a user |
+| `getUser` | GET | `mobile` | Look up user name in Users sheet |
+| `login` | POST | JSON body (`name`, `mobile`) | Create or update user in Users sheet |
 | `createBooking` | POST | JSON body | Create booking (set action name via env if different) |
 
 Example console list:

@@ -11,18 +11,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary:
-    "bg-[var(--accent)] text-black hover:bg-[var(--accent-hover)] shadow-[0_0_16px_rgba(0,255,198,0.2)]",
+  primary: "btn-gradient active:scale-[0.98]",
   secondary:
-    "border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--accent)]",
-  ghost: "text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-white/5",
-  danger: "bg-red-600/90 text-white hover:bg-red-500",
+    "border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--cyan)] hover:text-[var(--accent-muted)]",
+  ghost:
+    "text-[var(--foreground-secondary)] hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]",
+  danger: "bg-[var(--danger)] text-white hover:bg-red-600",
 };
 
 const sizeClasses: Record<Size, string> = {
-  sm: "min-h-8 px-2.5 py-1 text-xs font-semibold",
-  md: "min-h-9 px-3.5 py-2 text-sm font-medium",
-  lg: "min-h-10 px-4 py-2 text-sm font-semibold",
+  sm: "min-h-8 px-3 py-1 text-xs font-semibold",
+  md: "min-h-10 px-4 py-2 text-sm font-semibold",
+  lg: "min-h-11 px-5 py-2.5 text-sm font-bold",
 };
 
 export const Button = memo(function Button({
@@ -37,7 +37,7 @@ export const Button = memo(function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-lg transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-md)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--cyan)] disabled:cursor-not-allowed disabled:opacity-50",
         variantClasses[variant],
         sizeClasses[size],
         fullWidth && "w-full",

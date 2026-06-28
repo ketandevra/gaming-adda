@@ -10,8 +10,10 @@ import "./globals.css";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
-  themeColor: "#07080d",
+  themeColor: "#f4f6fb",
 };
 
 const rajdhani = Rajdhani({
@@ -33,6 +35,10 @@ export const metadata: Metadata = {
   },
   description:
     "Book PlayStation, Xbox, Nintendo, PC, and VR gaming console slots at The Gaming Adda.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -43,15 +49,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${rajdhani.variable} ${orbitron.variable} h-full`}
+      className={`${rajdhani.variable} ${orbitron.variable} h-full overflow-x-hidden`}
     >
-      <body className="flex min-h-dvh flex-col text-[length:var(--text-base)] antialiased">
+      <body className="flex min-h-dvh max-w-full flex-col overflow-x-hidden text-[length:var(--text-base)] antialiased">
         <AppProviders>
-          <Header />
-          <AppShell>
-            <main className="flex-1">{children}</main>
-          </AppShell>
-          <Footer />
+          <div className="app-content flex min-h-dvh flex-col">
+            <Header />
+            <AppShell>
+              <main className="flex-1">{children}</main>
+            </AppShell>
+            <Footer />
+          </div>
         </AppProviders>
       </body>
     </html>

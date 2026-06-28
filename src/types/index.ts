@@ -37,6 +37,10 @@ export interface Booking {
   consoleId: string;
   consoleName?: string;
   slotId: string;
+  /** All slot ids when booked together */
+  slotIds?: string[];
+  /** Underlying API booking ids when grouped for display */
+  bookingIds?: string[];
   customerName: string;
   customerEmail?: string;
   customerPhone?: string;
@@ -55,6 +59,7 @@ export interface Booking {
   createdAt?: string;
   bookedAt?: string;
   notes?: string;
+  utrNumber?: string;
 }
 
 export interface SubmitBookingUtrPayload {
@@ -63,9 +68,14 @@ export interface SubmitBookingUtrPayload {
   mobile?: string;
 }
 
+export interface VerifyBookingPaymentPayload {
+  bookingId: string;
+  customerPhone?: string;
+}
+
 export interface CreateBookingPayload {
   consoleId: string;
-  slotId: string;
+  slotIds: string[];
   customerName: string;
   mobile: string;
   customerEmail?: string;

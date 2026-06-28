@@ -3,6 +3,16 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import {
+  CalendarIcon,
+  CheckCircleIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  GamepadIcon,
+  NavBookingsIcon,
+  SearchEmptyIcon,
+  UserIcon,
+} from "@/components/icons";
 import { Badge } from "@/components/ui/Badge";
 import { fetchBooking } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -67,7 +77,7 @@ export function BookingDetailView({ id }: BookingDetailViewProps) {
   if (loading) {
     return (
       <PageWrap>
-        <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+        <div className="h-40 animate-pulse rounded-2xl bg-[var(--surface-elevated)]" />
       </PageWrap>
     );
   }
@@ -75,14 +85,18 @@ export function BookingDetailView({ id }: BookingDetailViewProps) {
   if (notFound || !booking) {
     return (
       <PageWrap className="text-center">
-        <h1 className="font-display text-2xl font-bold">Booking not found</h1>
+        <div className="bookings-empty-icon mx-auto" aria-hidden>
+          <SearchEmptyIcon size={28} strokeWidth={1.5} />
+        </div>
+        <h1 className="font-display mt-4 text-2xl font-bold">Booking not found</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Look up your booking from My Bookings using your email or phone.
         </p>
         <Link
           href="/bookings"
-          className="mt-6 inline-flex rounded-2xl bg-[var(--accent)] px-5 py-3 font-semibold text-black"
+          className="mt-6 link-btn-primary inline-flex items-center gap-1.5 rounded-2xl px-5 py-3"
         >
+          <NavBookingsIcon size={18} />
           My Bookings
         </Link>
       </PageWrap>
@@ -92,8 +106,11 @@ export function BookingDetailView({ id }: BookingDetailViewProps) {
   return (
     <PageWrap>
       {confirmed ? (
-        <div className="mb-5 rounded-2xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-4 py-3 text-center text-sm text-[var(--accent)] sm:mb-6">
-          Booking confirmed! See you at The Gaming Adda.
+        <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm text-emerald-800 sm:mb-6">
+          <p className="inline-flex items-center justify-center gap-1.5 font-medium">
+            <CheckCircleIcon size={18} />
+            Booking confirmed! See you at The Gaming Adda.
+          </p>
         </div>
       ) : null}
 
@@ -105,17 +122,26 @@ export function BookingDetailView({ id }: BookingDetailViewProps) {
 
       <dl className="mt-6 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:mt-8 sm:p-6">
         <div>
-          <dt className="text-sm text-[var(--muted)]">Console</dt>
+          <dt className="inline-flex items-center gap-1 text-sm text-[var(--muted)]">
+            <GamepadIcon size={14} />
+            Console
+          </dt>
           <dd className="text-lg font-semibold">
             {booking.consoleName ?? booking.consoleId}
           </dd>
         </div>
         <div>
-          <dt className="text-sm text-[var(--muted)]">Date</dt>
+          <dt className="inline-flex items-center gap-1 text-sm text-[var(--muted)]">
+            <CalendarIcon size={14} />
+            Date
+          </dt>
           <dd className="text-sm sm:text-base">{formatBookingCardDate(booking)}</dd>
         </div>
         <div>
-          <dt className="text-sm text-[var(--muted)]">Time</dt>
+          <dt className="inline-flex items-center gap-1 text-sm text-[var(--muted)]">
+            <ClockIcon size={14} />
+            Time
+          </dt>
           <dd className="text-sm sm:text-base">
             {formatBookingTimeRange(booking.startTime, booking.endTime)}
           </dd>
@@ -129,7 +155,10 @@ export function BookingDetailView({ id }: BookingDetailViewProps) {
           </div>
         ) : null}
         <div className="border-t border-[var(--border)] pt-4">
-          <dt className="text-sm text-[var(--muted)]">Guest</dt>
+          <dt className="inline-flex items-center gap-1 text-sm text-[var(--muted)]">
+            <UserIcon size={14} />
+            Guest
+          </dt>
           <dd className="mt-1">{booking.customerName}</dd>
           {booking.customerPhone ? (
             <dd className="text-sm text-[var(--muted)]">{booking.customerPhone}</dd>
@@ -146,15 +175,18 @@ export function BookingDetailView({ id }: BookingDetailViewProps) {
       <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
         <Link
           href="/consoles"
-          className="touch-target flex items-center justify-center rounded-2xl bg-[var(--accent)] px-5 py-3.5 text-center font-semibold text-black active:scale-[0.98] hover:bg-[var(--accent-hover)]"
+          className="touch-target link-btn-primary inline-flex items-center justify-center gap-1.5 rounded-2xl px-5 py-3.5"
         >
+          <GamepadIcon size={18} />
           Book another slot
         </Link>
         <Link
           href="/bookings"
-          className="touch-target flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3.5 text-center active:scale-[0.98] hover:border-[var(--accent)]"
+          className="touch-target flex items-center justify-center gap-1.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3.5 text-center active:scale-[0.98] hover:border-[var(--accent)]"
         >
+          <NavBookingsIcon size={18} />
           My bookings
+          <ChevronRightIcon size={16} className="opacity-60" />
         </Link>
       </div>
     </PageWrap>

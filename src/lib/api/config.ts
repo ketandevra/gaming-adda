@@ -1,11 +1,19 @@
 export const sheetsActions = {
   login: "login",
+  /** Lookup user by mobile in Users sheet */
+  getUser: "getUser",
   consoleTypes: "consoleTypes",
   availableSlots: "availableSlots",
   myBookings: "myBookings",
   /** Set in env when your script supports creating bookings via POST */
   createBooking: process.env.NEXT_PUBLIC_SHEETS_ACTION_CREATE_BOOKING ?? "createBooking",
   submitUTR: "submitUTR",
+  /** Admin: list all bookings */
+  getBookings:
+    process.env.NEXT_PUBLIC_SHEETS_ACTION_GET_BOOKINGS ?? "getBookings",
+  /** Admin: mark booking Confirmed + payment Paid */
+  verifyPayment:
+    process.env.NEXT_PUBLIC_SHEETS_ACTION_VERIFY_PAYMENT ?? "verifyPayment",
 } as const;
 
 export function getApiBaseUrl(): string {

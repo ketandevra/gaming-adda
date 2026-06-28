@@ -15,7 +15,9 @@ export function areBookingsEqual(a: Booking, b: Booking): boolean {
     a.endTime === b.endTime &&
     a.totalAmount === b.totalAmount &&
     a.bookedAt === b.bookedAt &&
-    a.notes === b.notes
+    a.notes === b.notes &&
+    JSON.stringify(a.slotIds ?? []) === JSON.stringify(b.slotIds ?? []) &&
+    JSON.stringify(a.bookingIds ?? []) === JSON.stringify(b.bookingIds ?? [])
   );
 }
 

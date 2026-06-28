@@ -1,20 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useMemo } from "react";
+import { ConsoleImage } from "@/components/consoles/ConsoleImage";
+import { PlatformIcon } from "@/components/consoles/PlatformIcon";
+import { ChevronRightIcon, UsersIcon } from "@/components/icons";
+import { getPlatformStyle } from "@/lib/platform-styles";
 import { formatCurrency, platformLabel } from "@/lib/utils";
 import { areConsolesEqual } from "@/lib/react/compare";
 import type { GameConsole } from "@/types";
-import { Badge } from "@/components/ui/Badge";
-
-const platformEmoji: Record<GameConsole["platform"], string> = {
-  playstation: "🎮",
-  xbox: "🟢",
-  nintendo: "🔴",
-  pc: "🖥️",
-  vr: "🥽",
-  other: "⚡",
-};
+import { memo, useMemo } from "react";
 
 interface ConsoleCardProps {
   console: GameConsole;
@@ -25,7 +19,10 @@ function ConsoleCardComponent({ console: gameConsole }: ConsoleCardProps) {
     () => platformLabel(gameConsole.platform),
     [gameConsole.platform],
   );
-  const emoji = platformEmoji[gameConsole.platform];
+  const style = useMemo(
+    () => getPlatformStyle(gameConsole.platform),
+    [gameConsole.platform],
+  );
   const rateLabel = useMemo(
     () => formatCurrency(gameConsole.hourlyRate),
     [gameConsole.hourlyRate],
@@ -36,45 +33,53 @@ function ConsoleCardComponent({ console: gameConsole }: ConsoleCardProps) {
   );
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] transition hover:border-[var(--accent)]/40 hover:shadow-[0_4px_20px_rgba(0,255,198,0.06)]">
-      <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-[var(--surface-elevated)] to-black">
-        <span className="text-4xl opacity-90 transition group-hover:scale-105">
-          {emoji}
-        </span>
-        <span className="absolute right-2 top-2">
-          <Badge variant="accent">{platform}</Badge>
+    <article className="console-card group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)]">
+      <div className="relative">
+        <ConsoleImage
+          console={gameConsole}
+          className="aspect-[16/10] w-full"
+        />
+        <span
+          className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm backdrop-blur-sm"
+          style={{
+            backgroundColor: `${style.color}ee`,
+            color: "#fff",
+          }}
+        >
+          <PlatformIcon platform={gameConsole.platform} size={12} color="#fff" />
+          {platform}
         </span>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-3.5">
-        <div>
-          <h3 className="text-sm font-semibold leading-tight text-[var(--foreground)]">
-            {gameConsole.name}
-          </h3>
-          {gameConsole.description ? (
-            <p className="mt-0.5 line-clamp-2 text-xs text-[var(--muted)]">
-              {gameConsole.description}
-            </p>
-          ) : null}
-        </div>
+      <div className="flex flex-1 flex-col p-4">
+        <h3 className="text-base font-bold leading-snug text-[var(--foreground)]">
+          {gameConsole.name}
+        </h3>
+        {gameConsole.description ? (
+          <p className="mt-1 line-clamp-2 text-sm text-[var(--foreground-secondary)]">
+            {gameConsole.description}
+          </p>
+        ) : null}
 
-        <div className="mt-auto flex items-end justify-between gap-2 pt-1">
+        <div className="mt-auto flex items-end justify-between gap-3 pt-4">
           <div>
-            <p className="text-[10px] text-[var(--muted)]">From</p>
-            <p className="text-base font-bold leading-none text-[var(--accent)]">
+            <p className="text-xs text-[var(--muted)]">From</p>
+            <p className="text-xl font-bold text-[var(--foreground)]">
               {rateLabel}
-              <span className="text-xs font-normal text-[var(--muted)]">/hr</span>
+              <span className="text-sm font-normal text-[var(--muted)]">/hr</span>
             </p>
-            <p className="text-[10px] text-[var(--muted)]">
+            <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-[var(--foreground-secondary)]">
+              <UsersIcon size={14} className="text-[var(--muted)]" />
               Up to {gameConsole.maxPlayers} players
             </p>
           </div>
           <Link
             href={bookHref}
             prefetch={false}
-            className="inline-flex min-h-8 items-center rounded-lg border border-[var(--accent)]/40 px-3 py-1.5 text-xs font-semibold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-black active:scale-[0.98]"
+            className="console-card-book inline-flex min-h-9 items-center gap-1 rounded-[var(--radius-md)] px-4 py-2 text-sm font-bold transition active:scale-[0.98]"
           >
             Book
+            <ChevronRightIcon size={16} />
           </Link>
         </div>
       </div>

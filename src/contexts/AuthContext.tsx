@@ -2,16 +2,15 @@
 
 import {
   clearStoredUser,
-  getStoredUserSync,
-  setStoredUser,
+  persistUser,
+  readStoredUser,
 } from "@/lib/auth/storage";
-import { sheetsLogin } from "@/lib/api/sheets-auth";
+import { authenticateUser } from "@/lib/auth/session";
 import type { LoginPayload, User } from "@/types/auth";
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -20,34 +19,43 @@ import {
 interface AuthContextValue {
   user: User | null;
   isReady: boolean;
+  isAdmin: boolean;
   login: (payload: LoginPayload) => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isReady, setIsReady] = useState(false);
+function getInitialAuthState(): { user: User | null; isReady: boolean } {
+  if (typeof window === "undefined") {
+    return { user: null, isReady: false };
+  }
+  return { user: readStoredUser(), isReady: true };
+}
 
-  useEffect(() => {
-    setUser(getStoredUserSync());
-    setIsReady(true);
-  }, []);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [authState, setAuthState] = useState(getInitialAuthState);
+  const { user, isReady } = authState;
 
   const login = useCallback(async (payload: LoginPayload) => {
-    const loggedIn = await sheetsLogin(payload);
-    await setStoredUser(loggedIn);
-    setUser(loggedIn);
+    const loggedIn = await authenticateUser(payload);
+    persistUser(loggedIn);
+    setAuthState({ user: loggedIn, isReady: true });
   }, []);
 
   const logout = useCallback(async () => {
     await clearStoredUser();
-    setUser(null);
+    setAuthState({ user: null, isReady: true });
   }, []);
 
   const value = useMemo(
-    () => ({ user, isReady, login, logout }),
+    () => ({
+      user,
+      isReady,
+      isAdmin: Boolean(user?.isAdmin),
+      login,
+      logout,
+    }),
     [user, isReady, login, logout],
   );
 

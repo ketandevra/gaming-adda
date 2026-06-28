@@ -1,3 +1,4 @@
+import { sortBookingsByCreatedDesc } from "@/lib/bookings/sort";
 import {
   combineDateAndTime,
   isValidBookingDate,
@@ -75,18 +76,6 @@ export function isUpcomingBooking(booking: Booking, now = Date.now()): boolean {
   return !isPastBooking(booking, now);
 }
 
-function sortByStartAsc(a: Booking, b: Booking): number {
-  const aStart = getBookingSessionStart(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-  const bStart = getBookingSessionStart(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-  return aStart - bStart;
-}
-
-function sortByEndDesc(a: Booking, b: Booking): number {
-  const aEnd = getBookingSessionEnd(a)?.getTime() ?? 0;
-  const bEnd = getBookingSessionEnd(b)?.getTime() ?? 0;
-  return bEnd - aEnd;
-}
-
 export function partitionBookings(bookings: Booking[]): {
   upcoming: Booking[];
   past: Booking[];
@@ -102,8 +91,8 @@ export function partitionBookings(bookings: Booking[]): {
     }
   }
 
-  upcoming.sort(sortByStartAsc);
-  past.sort(sortByEndDesc);
-
-  return { upcoming, past };
+  return {
+    upcoming: sortBookingsByCreatedDesc(upcoming),
+    past: sortBookingsByCreatedDesc(past),
+  };
 }

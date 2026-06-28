@@ -1,105 +1,167 @@
 import Link from "next/link";
-
-const linkBtn =
-  "inline-flex min-h-9 items-center rounded-lg px-4 py-2 text-sm font-semibold transition";
+import Image from "next/image";
+import {
+  CalendarIcon,
+  CheckCircleIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  GamepadIcon,
+  SparklesIcon,
+} from "@/components/icons";
+import { SetupIcon } from "@/components/consoles/SetupIcon";
+import { availableSetups } from "@/lib/available-setups";
+import { withBasePath } from "@/lib/base-path";
 
 export default function HomePage() {
   return (
-    <div className="relative overflow-hidden">
-      <div className="glow-orb -left-32 top-16 h-48 w-48 bg-[var(--accent)]" />
-      <div className="glow-orb right-0 top-32 h-56 w-56 bg-[var(--accent-secondary)]" />
+    <div>
+      {/* Hero */}
+      <section className="hero-section border-b border-[var(--border)]">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-2 lg:gap-12">
+          <div>
+            <p className="text-label">The Gaming Adda</p>
 
-      <section className="bg-grid relative border-b border-[var(--border)]">
-        <div className="mx-auto max-w-6xl px-3.5 py-8 sm:px-5 sm:py-12">
-          <p className="font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
-            The Gaming Adda
-          </p>
-          <h1 className="font-display mt-2 max-w-2xl text-2xl font-bold leading-tight text-[var(--foreground)] sm:text-3xl">
-            Book your console.
-            <span className="block text-[var(--accent)]">Play without the wait.</span>
-          </h1>
-          <p className="mt-3 max-w-md text-sm text-[var(--muted)]">
-            Reserve PS5, Xbox, Switch, elite PC rigs, and VR stations by the hour.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2.5">
-            <Link
-              href="/consoles"
-              prefetch={false}
-              className={`${linkBtn} bg-[var(--accent)] text-black hover:bg-[var(--accent-hover)]`}
-            >
-              Browse Consoles
-            </Link>
-            <Link
-              href="/bookings"
-              className={`${linkBtn} border border-[var(--border)] font-medium text-[var(--foreground)] hover:border-[var(--accent)]`}
-            >
-              My Bookings
-            </Link>
+            <h1 className="font-display mt-3 text-2xl font-bold leading-tight text-[var(--foreground)] sm:text-4xl lg:text-5xl">
+              Book your console.
+              <span className="mt-1 block brand-gradient-text">
+                Play without the wait.
+              </span>
+            </h1>
+
+            <p className="mt-4 max-w-lg text-base text-[var(--foreground-secondary)]">
+              Reserve PS5 stations, 8 ball pool, air hockey, table tennis, foosball
+              and more by the hour. Pick a slot and confirm in seconds.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link href="/consoles" prefetch={false} className="link-btn-primary inline-flex items-center justify-center gap-2">
+                Browse Consoles
+                <ChevronRightIcon size={18} />
+              </Link>
+              <Link href="/bookings" className="link-btn-secondary inline-flex items-center justify-center gap-2">
+                <CalendarIcon size={18} />
+                My Bookings
+              </Link>
+            </div>
+
+            <dl className="mt-8 grid grid-cols-3 gap-2 sm:mt-10 sm:gap-3 sm:max-w-md">
+              <div className="stat-block">
+                <dt className="inline-flex items-center justify-center gap-1">
+                  <GamepadIcon size={18} className="text-[var(--accent-muted)]" />
+                  6
+                </dt>
+                <dd>Stations</dd>
+              </div>
+              <div className="stat-block">
+                <dt className="inline-flex items-center justify-center gap-1">
+                  <ClockIcon size={18} className="text-[var(--accent-muted)]" />
+                  10AM–12AM
+                </dt>
+                <dd>Open hours</dd>
+              </div>
+              <div className="stat-block">
+                <dt className="inline-flex items-center justify-center gap-1">
+                  <CalendarIcon size={18} className="text-[var(--accent-muted)]" />
+                  1hr
+                </dt>
+                <dd>Slot length</dd>
+              </div>
+            </dl>
           </div>
 
-          <dl className="mt-8 grid grid-cols-3 gap-3 border-t border-[var(--border)] pt-5 sm:max-w-md">
-            <div>
-              <dt className="text-lg font-bold text-[var(--accent)]">5+</dt>
-              <dd className="text-xs text-[var(--muted)]">Stations</dd>
-            </div>
-            <div>
-              <dt className="text-lg font-bold text-[var(--accent)]">10–22</dt>
-              <dd className="text-xs text-[var(--muted)]">Open hours</dd>
-            </div>
-            <div>
-              <dt className="text-lg font-bold text-[var(--accent)]">1hr</dt>
-              <dd className="text-xs text-[var(--muted)]">Slot length</dd>
-            </div>
-          </dl>
+          <div className="flex justify-center lg:justify-end">
+            <Image
+              src={withBasePath("/logo.png")}
+              alt="The Gaming Adda — Book. Play. Enjoy."
+              width={360}
+              height={360}
+              priority
+              className="h-auto w-full max-w-[280px] drop-shadow-lg sm:max-w-[320px] lg:max-w-[360px]"
+            />
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-3.5 py-8 sm:px-5">
-        <div className="section-card p-5 text-center sm:p-6">
-          <h2 className="font-display text-lg font-bold">Ready to play?</h2>
-          <p className="mt-1.5 text-sm text-[var(--muted)]">
-            Pick a console, choose your slot, and confirm in seconds.
-          </p>
-          <Link
-            href="/consoles"
-            prefetch={false}
-            className={`${linkBtn} mt-4 bg-[var(--accent)] text-black hover:bg-[var(--accent-hover)]`}
-          >
-            View all consoles
-          </Link>
+      {/* Platforms */}
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <h2 className="text-lg font-bold text-[var(--foreground)]">Available platforms</h2>
+        <p className="mt-1 text-sm text-[var(--foreground-secondary)]">
+          Choose from a range of gaming setups.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {availableSetups.map((setup) => (
+            <span key={setup.id} className="platform-chip">
+              <SetupIcon setupId={setup.id} color={setup.color} size={18} />
+              <span style={{ color: setup.color }}>{setup.label}</span>
+            </span>
+          ))}
         </div>
       </section>
 
-      <section className="border-t border-[var(--border)] bg-[var(--surface)]/40">
-        <div className="mx-auto max-w-6xl px-3.5 py-8 sm:px-5">
-          <h2 className="font-display text-center text-lg font-bold">How it works</h2>
-          <ol className="mt-6 grid gap-5 sm:grid-cols-3">
+      {/* How it works */}
+      <section className="border-t border-[var(--border)] bg-[var(--background)]">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+          <p className="text-label">How it works</p>
+          <h2 className="mt-1 text-2xl font-bold text-[var(--foreground)]">Three simple steps</h2>
+
+          <ol className="mt-8 grid gap-4 sm:grid-cols-3">
             {[
               {
                 step: "01",
                 title: "Pick a console",
-                desc: "Browse stations by platform and price.",
+                desc: "Browse stations by platform and hourly rate.",
+                Icon: GamepadIcon,
               },
               {
                 step: "02",
                 title: "Choose a slot",
-                desc: "Select date and available hour.",
+                desc: "Select a date and grab an available hour.",
+                Icon: CalendarIcon,
               },
               {
                 step: "03",
                 title: "Confirm & play",
                 desc: "Book with your mobile — show up and game.",
+                Icon: CheckCircleIcon,
               },
             ].map((item) => (
-              <li key={item.step} className="text-center sm:text-left">
-                <span className="font-display text-2xl font-bold text-[var(--accent)]/40">
-                  {item.step}
-                </span>
-                <h3 className="mt-1.5 text-sm font-semibold">{item.title}</h3>
-                <p className="mt-0.5 text-xs text-[var(--muted)]">{item.desc}</p>
+              <li key={item.step} className="step-card">
+                <div className="flex items-center gap-3">
+                  <span className="step-number">{item.step}</span>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-muted)]">
+                    <item.Icon size={18} />
+                  </span>
+                </div>
+                <h3 className="mt-3 text-base font-bold">{item.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--foreground-secondary)]">
+                  {item.desc}
+                </p>
               </li>
             ))}
           </ol>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="border-t border-[var(--border)]">
+        <div className="mx-auto max-w-6xl px-4 py-12 text-center sm:px-6">
+          <div className="card mx-auto max-w-lg p-8">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-muted)]">
+              <SparklesIcon size={24} />
+            </div>
+            <h2 className="text-xl font-bold sm:text-2xl">Ready to play?</h2>
+            <p className="mt-2 text-sm text-[var(--foreground-secondary)]">
+              Pick a console, choose your slot, and confirm in seconds.
+            </p>
+            <Link
+              href="/consoles"
+              prefetch={false}
+              className="link-btn-primary mt-6 inline-flex items-center gap-2"
+            >
+              View all consoles
+              <ChevronRightIcon size={18} />
+            </Link>
+          </div>
         </div>
       </section>
     </div>

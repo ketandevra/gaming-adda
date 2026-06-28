@@ -1,4 +1,4 @@
-import { isPaymentPending } from "@/lib/utils";
+import { bookingNeedsPayment } from "@/lib/bookings/payment";
 import type { Booking } from "@/types";
 
 /** Parse API expiry field (supports expiresAt / expiresAT naming). */
@@ -49,5 +49,5 @@ export function getPaymentExpiryState(
 
 /** Show countdown while payment is pending and UTR not yet submitted. */
 export function shouldShowPaymentCountdown(booking: Booking): boolean {
-  return isPaymentPending(booking.paymentStatus) && Boolean(booking.expiresAt);
+  return bookingNeedsPayment(booking) && Boolean(booking.expiresAt);
 }

@@ -2,13 +2,14 @@ import { normalizeMobile } from "@/lib/auth/mobile";
 import { combineDateAndTime } from "@/lib/utils";
 import { CACHE_TTL, cachedFetch, invalidateCache } from "./cache";
 import { sheetsActions } from "./config";
-import { getSheetsGetUrl, getSheetsPostUrl } from "./request-url";
+import { getSheetsGetUrl, getSheetsPostUrl, getSheetsFetchHeaders } from "./request-url";
 import {
   mapAvailableSlot,
   mapConsoleType,
   mapSheetsBooking,
   parseSlotId,
 } from "./sheets-mappers";
+import { enrichConsoleWithImage } from "@/lib/console-images";
 import type {
   SheetsAvailableSlot,
   SheetsBooking,
@@ -21,8 +22,13 @@ import type {
   GameConsole,
   SubmitBookingUtrPayload,
   TimeSlot,
+  VerifyBookingPaymentPayload,
 } from "@/types";
 import { ApiError } from "./client";
+import {
+  resolveSlotsForBooking,
+  sumResolvedSlotPrices,
+} from "@/lib/bookings/slots";
 
 type SheetsParams = Record<string, string | number | boolean | undefined>;
 
@@ -30,6 +36,7 @@ const CACHE_KEYS = {
   consoles: "consoles:all",
   slots: (consoleId: string, date: string) => `slots:${consoleId}:${date}`,
   bookings: (mobile: string) => `bookings:${mobile}`,
+  allBookings: "bookings:admin:all",
 };
 
 async function sheetsFetch<T>(params: SheetsParams, init?: RequestInit): Promise<T> {
@@ -37,9 +44,9 @@ async function sheetsFetch<T>(params: SheetsParams, init?: RequestInit): Promise
 
   const response = await fetch(url, {
     ...init,
+    redirect: "follow",
     headers: {
-      Accept: "application/json",
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...getSheetsFetchHeaders(init),
       ...init?.headers,
     },
     cache: "no-store",
@@ -78,7 +85,8 @@ async function sheetsPost<T = unknown>(body: Record<string, unknown>): Promise<T
 
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    redirect: "follow",
+    headers: getSheetsFetchHeaders({ body: JSON.stringify(body) }),
     body: JSON.stringify(body),
     cache: "no-store",
   });
@@ -116,7 +124,7 @@ async function fetchConsolesFromApi(): Promise<GameConsole[]> {
     action: sheetsActions.consoleTypes,
   });
   if (!Array.isArray(rows)) return [];
-  return rows.map(mapConsoleType);
+  return rows.map(mapConsoleType).map(enrichConsoleWithImage);
 }
 
 export async function sheetsFetchConsoles(): Promise<GameConsole[]> {
@@ -181,6 +189,10 @@ export function invalidateBookingsCache(mobile: string) {
   invalidateCache(CACHE_KEYS.bookings(normalizeMobile(mobile)));
 }
 
+export function invalidateAllBookingsCache() {
+  invalidateCache(CACHE_KEYS.allBookings);
+}
+
 export function invalidateSlotsCache(consoleId: string, date: string) {
   invalidateCache(CACHE_KEYS.slots(consoleId, date));
 }
@@ -192,51 +204,74 @@ export async function sheetsFetchBooking(_id: string): Promise<Booking | null> {
 export async function sheetsCreateBooking(
   payload: CreateBookingPayload,
 ): Promise<Booking> {
-  const slot = parseSlotId(payload.slotId);
-  if (!slot) {
+  if (payload.slotIds.length === 0) {
+    throw new ApiError("No slot selected", 400);
+  }
+
+  const console_ = await sheetsFetchConsole(payload.consoleId);
+  const hourlyRate = console_?.hourlyRate ?? 0;
+  const resolved = resolveSlotsForBooking(
+    payload.consoleId,
+    payload.slotIds,
+    hourlyRate,
+  );
+
+  if (resolved.length === 0) {
     throw new ApiError("Invalid slot selection", 400);
   }
 
+  const first = resolved[0]!;
+  const last = resolved[resolved.length - 1]!;
+  const totalAmount = sumResolvedSlotPrices(resolved, hourlyRate);
   const mobile = normalizeMobile(payload.mobile);
 
   const data = await sheetsPost<SheetsBooking | unknown>({
     action: sheetsActions.createBooking,
     consoleTypeId: Number(payload.consoleId),
-    bookingDate: slot.date,
-    startTime: slot.startTime,
-    endTime: slot.endTime,
+    bookingDate: first.date,
+    startTime: first.startTime,
+    endTime: last.endTime,
     name: payload.customerName,
     mobile,
     customerName: payload.customerName,
     customerPhone: mobile,
     phone: mobile,
+    totalAmount,
   });
 
   invalidateBookingsCache(mobile);
-  invalidateSlotsCache(payload.consoleId, slot.date);
+  invalidateSlotsCache(payload.consoleId, first.date);
+
+  const slotId = payload.slotIds[0]!;
 
   if (data && typeof data === "object" && !Array.isArray(data)) {
-    return mapSheetsBooking(data as SheetsBooking);
+    const booking = mapSheetsBooking(data as SheetsBooking);
+    return {
+      ...booking,
+      slotId,
+      slotIds: payload.slotIds,
+      totalAmount: booking.totalAmount ?? totalAmount,
+    };
   }
-
-  const consoles = await sheetsFetchConsoles();
-  const console_ = consoles.find((c) => c.id === payload.consoleId);
 
   return {
     id: `bk-${Date.now()}`,
     consoleId: payload.consoleId,
     consoleName: console_?.name,
-    slotId: payload.slotId,
+    slotId,
+    slotIds: payload.slotIds,
     customerName: payload.customerName,
     customerEmail: payload.customerEmail ?? `${mobile}@gaming-adda.local`,
     customerPhone: mobile,
-    bookingDate: slot.date,
-    startTime: slot.startTime,
-    endTime: slot.endTime,
-    totalAmount: console_?.hourlyRate,
+    bookingDate: first.date,
+    startTime: first.startTime,
+    endTime: last.endTime,
+    totalAmount,
     status: "confirmed",
     createdAt: new Date().toISOString(),
-    notes: payload.notes,
+    notes:
+      payload.notes ??
+      (payload.slotIds.length > 1 ? `${payload.slotIds.length} slots` : undefined),
   };
 }
 
@@ -252,4 +287,33 @@ export async function sheetsSubmitUtr(
   if (payload.mobile) {
     invalidateBookingsCache(payload.mobile);
   }
+  invalidateAllBookingsCache();
+}
+
+export async function sheetsFetchAllBookings(): Promise<Booking[]> {
+  return cachedFetch(
+    CACHE_KEYS.allBookings,
+    async () => {
+      const rows = await sheetsFetch<SheetsBooking[]>({
+        action: sheetsActions.getBookings,
+      });
+      if (!Array.isArray(rows)) return [];
+      return rows.map(mapSheetsBooking);
+    },
+    CACHE_TTL.bookings,
+  );
+}
+
+export async function sheetsVerifyBookingPayment(
+  payload: VerifyBookingPaymentPayload,
+): Promise<void> {
+  await sheetsPost({
+    action: sheetsActions.verifyPayment,
+    bookingId: payload.bookingId,
+    fields: {
+      bookingStatus: "Confirmed",
+      paymentStatus: "Paid",
+    },
+  });
+  invalidateAllBookingsCache();
 }

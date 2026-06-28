@@ -1,27 +1,9 @@
 import { cn } from "@/lib/utils";
+import { InfoIcon } from "@/components/icons";
 
 interface PaymentAutoCancelNoticeProps {
   expired?: boolean;
   className?: string;
-}
-
-function InfoIcon() {
-  return (
-    <svg
-      className="mt-0.5 h-4 w-4 shrink-0"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      aria-hidden
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-      />
-    </svg>
-  );
 }
 
 export function PaymentAutoCancelNotice({
@@ -32,35 +14,25 @@ export function PaymentAutoCancelNotice({
     <div
       className={cn(
         "flex gap-2.5 rounded-lg border px-3 py-2.5 text-xs leading-relaxed",
-        expired
-          ? "border-red-500/25 bg-red-500/8 text-red-200/90"
-          : "border-amber-500/20 bg-amber-500/5 text-[var(--muted)]",
+        expired ? "alert-error" : "alert-warning",
         className,
       )}
       role="note"
     >
-      <span className={expired ? "text-red-300" : "text-amber-300/90"}>
-        <InfoIcon />
+      <span className={expired ? "text-[var(--status-danger-text)]" : "text-[var(--status-warning-text)]"}>
+        <InfoIcon size={16} className="mt-0.5" />
       </span>
-      <p>
+      <p className={expired ? "text-[var(--status-danger-text)]" : "text-[var(--status-warning-text)]"}>
         {expired ? (
           <>
-            <span className="font-semibold text-red-200">
-              Payment was not completed in time.
-            </span>{" "}
+            <span className="font-semibold">Payment was not completed in time.</span>{" "}
             This booking has been cancelled automatically.
           </>
         ) : (
           <>
-            <span className="font-medium text-[var(--foreground)]">
-              Important:
-            </span>{" "}
-            If payment fails or is not completed before the timer ends, this
-            booking will be{" "}
-            <span className="font-semibold text-amber-200">
-              cancelled automatically
-            </span>
-            .
+            <span className="font-semibold">Important:</span> If payment is not
+            completed before the timer ends, this booking will be{" "}
+            <span className="font-semibold">cancelled automatically</span>.
           </>
         )}
       </p>
