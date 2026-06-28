@@ -266,9 +266,9 @@ export function LoginForm() {
         onChange={(e) => setMobile(e.target.value)}
         onInput={(e) => setMobile(e.currentTarget.value)}
         error={errors.mobile}
-        placeholder="9999999999"
+        placeholder="Enter your 10-digit mobile number"
         autoComplete="tel"
-        maxLength={14}
+        maxLength={10}
         enterKeyHint="go"
       />
 

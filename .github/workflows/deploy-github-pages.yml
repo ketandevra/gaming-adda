@@ -28,6 +28,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify NEXT_PUBLIC_API_URL secret
+        env:
+          API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "::error::Add the NEXT_PUBLIC_API_URL repository secret (Settings → Secrets and variables → Actions) with your Google Apps Script /exec URL."
+            exit 1
+          fi
+
       - name: Build static site
         env:
           NEXT_PUBLIC_BASE_PATH: /gaming-adda
