@@ -44,7 +44,7 @@ function BottomTabBarComponent() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] md:hidden"
+      className="bottom-tab-bar fixed inset-x-0 bottom-0 z-50 md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       aria-label="Main navigation"
     >
@@ -59,17 +59,16 @@ function BottomTabBarComponent() {
               href={dest}
               prefetch={href === "/consoles" ? false : undefined}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-2 touch-manipulation transition-colors",
-                active
-                  ? "text-[var(--accent-muted)]"
-                  : "text-[var(--muted)] active:text-[var(--foreground)]",
+                "bottom-tab-link",
+                active && "bottom-tab-link--active",
               )}
               aria-current={active ? "page" : undefined}
             >
-              {Icon ? <Icon active={active} size={20} /> : null}
-              <span className="truncate text-[11px] font-semibold">
-                {shortLabel}
+              {active ? <span className="bottom-tab-link-indicator" aria-hidden="true" /> : null}
+              <span className="bottom-tab-link-icon">
+                {Icon ? <Icon active={active} size={20} /> : null}
               </span>
+              <span className="bottom-tab-link-label">{shortLabel}</span>
             </Link>
           );
         })}

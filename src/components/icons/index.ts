@@ -23,4 +23,5 @@ export {
   LoginIcon,
   LockIcon,
   CopyIcon,
+  MapPinIcon,
 } from "./icons";

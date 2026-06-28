@@ -76,7 +76,7 @@ export default function HomePage() {
               width={360}
               height={360}
               priority
-              className="h-auto w-full max-w-[280px] drop-shadow-lg sm:max-w-[320px] lg:max-w-[360px]"
+              className="hero-logo-glow h-auto w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[360px]"
             />
           </div>
         </div>
