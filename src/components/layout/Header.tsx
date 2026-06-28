@@ -13,7 +13,7 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { shouldUseMockData } from "@/lib/api/config";
+import { shouldShowDemoModeBanner } from "@/lib/api/config";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
@@ -153,9 +153,12 @@ function HeaderComponent() {
         ) : null}
       </div>
 
-      {shouldUseMockData() ? (
-        <div className="border-t border-amber-200 bg-amber-50 px-3 py-1.5 text-center text-xs text-amber-800">
-          Demo mode — set <code className="rounded bg-amber-100 px-1">NEXT_PUBLIC_API_URL</code>
+      {shouldShowDemoModeBanner() ? (
+        <div className="border-t border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs leading-relaxed text-amber-900">
+          Demo mode — add{" "}
+          <code className="rounded bg-amber-100 px-1">NEXT_PUBLIC_API_URL</code> to{" "}
+          <code className="rounded bg-amber-100 px-1">.env.local</code> (see{" "}
+          <code className="rounded bg-amber-100 px-1">.env.example</code>)
         </div>
       ) : null}
 

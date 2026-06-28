@@ -29,3 +29,10 @@ export function shouldUseMockData(): boolean {
   if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true") return true;
   return !getApiBaseUrl();
 }
+
+/** Dev-only hint when mock data is used because the API URL was never set. */
+export function shouldShowDemoModeBanner(): boolean {
+  if (process.env.NODE_ENV !== "development") return false;
+  if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true") return false;
+  return !getApiBaseUrl();
+}
